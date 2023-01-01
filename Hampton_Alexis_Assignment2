@@ -1,0 +1,302 @@
+##############################################################################
+# Program name: Assignment 2
+# Programmer: Alexis Hampton
+# Submission Date: 12/7/22
+##############################################################################
+# Overall Program Functional Description:
+# It takes 2 numbers for a row and column of a 3x3 matrix and replaces -1's with either a 1 or a 0. 
+# Then it prints out the array as a tic tac toe board
+##############################################################################
+# Register Usage in Main:
+# $t0 - holds the address of the array
+# $t1 - holds -1 for the first loop
+# $t2 - holds the counter for the first loop, stores the column index in te second loop
+# $t3 - holds the number of elements in A in the first loop, stores the row index in the second loop
+# $t4 - stores the value that will be inputed into A[r][c]
+# $t5 - holds the A[r][c] address calculation through all stages
+# $t6 - stores the number of columns for the A[r][c] address calculation
+# $a0 - used to load addresses 
+# $v0 - used to print or read or retrieve data 
+# $s0 - holds the counter for the columns in the print loop
+##############################################################################
+		.data
+A:	       .space			36
+tText:		.asciiz			"Type -1 for the row number and -1 for the column number to terminate the loop."
+iText:		.asciiz			"Otherwise type 0, 1, or 2 for the row number and 0, 1, or 2 for the column number."
+rText:         .asciiz			"Enter a row number:"
+cText:         .asciiz			"Enter a column number:"
+inText: 	.asciiz			"Enter either 0 or 1:"
+dashes: 	.asciiz			"-----------"
+middleChars:   .asciiz			"|" 
+newline:       .asciiz			"\n"
+NegOne:		.asciiz			"   "
+One:		.asciiz			" X "
+Zero:		.asciiz			" O "
+
+		.text
+		
+		la $t0, A #put address of array A into t0
+		li $t1, -1 #put -1 into t1
+		li $t2, 0 #counter
+		li $t3, 9 #number of elements in A
+firstLoop:     
+		bgt $t2, $t3, inputRowsCols #once we reach the end of the array, we can start the second loop
+		sw $t1, 0($t0) #load -1 into A
+		addi $t0 $t0, 4 #go to the next element in the array
+		addi $t2, $t2, 1 #increase the counter
+		j firstLoop #loop again
+		
+		
+inputRowsCols: 
+		la $t0, A #since t0 was ruined since we added to it, we need to give it the value of address A again
+		
+		#output termination text
+		la $a0, tText
+		li $v0, 4
+		syscall
+		
+		jal newLine #prints a newline
+		
+		#output indicies instructions text
+		la $a0, iText
+		li $v0, 4
+		syscall
+		
+		jal newLine
+
+		#output the row text
+		la $a0, rText
+		li $v0, 4
+		syscall
+		
+		jal newLine
+		
+		#input the row index
+		li $v0, 5
+		syscall
+		move $t3, $v0 #store the row index in t3
+		
+		jal newLine
+		
+		#output the column text
+		la $a0, cText
+		li $v0, 4
+		syscall
+		
+		jal newLine
+		
+		#input the col index
+		li $v0, 5
+		syscall
+		move $t2, $v0 #store col index in t2
+		
+		#if row or col index is equal to -1, go to the end
+		beq $t3, -1, end
+		beq $t2, -1, end
+		
+		#if the row  and col indicies are greater than 2, get new indicies
+		bgt $t3, 2, inputRowsCols
+		bgt $t2, 2, inputRowsCols
+		
+		#if the row and col indicies are less than 0, get new indicies
+		blt $t3, 0, inputRowsCols
+		blt $t2, 0, inputRowsCols
+		
+		#print input text
+		la $a0, inText
+		li $v0, 4
+		syscall
+		
+		#input array value and put it in t4
+		li $v0, 5
+		syscall
+		move $t4, $v0 #puts the A[r][c] value into t4
+		
+		# if t is not 0 or 1 then start the loop again
+		bgt $t4, 1, inputRowsCols 
+		blt $t4, 0, inputRowsCols
+		
+		#to get the address of r,c
+		#get the offset(which will be stored in t5):
+		 
+		mul $t5, $t3,3 #multiply the row index by the number of columns
+		add $t5, $t5, $t2 #add it to the col index
+		mul $t5, $t5, 4 #multiply the above by 4
+		
+		#add the offset to the address of the base address which is still in t0
+		add $t5, $t5, $t0
+		
+		#store the new number into the address of A[r][c]
+		sw $t4, 0($t5)
+		
+		#ask for more numbers
+		j inputRowsCols
+		
+end:		
+		#print the array
+		la $t0, A #reload the address just in case
+		li $t1, 9 #the number of elements in A
+		li $t2, 0 # overall counter 
+		li $s0, 0 #column counter
+loop:		
+		bge $t2, 9, exit #if we've printed all the elements, leave
+		lw $t4, 0($t0) #t4 = A[r][c] 
+		
+		jal checkValue #loads the proper string into a0 depending on t4's value
+
+		jal printChar #prints the string decided above
+		beq $t2, 8, loopEnd #exits before another row od dashes can appear
+		#if col counter == 2, output line
+		beq $s0, 2, dash
+		
+		#otherwise print the middle characters
+		jal printMiddleChars
+		#skip over printing the dashes
+		j loopEnd 
+		
+dash:		jal newLine
+		
+		#prints the dashes 
+		la $a0, dashes 
+		li $v0, 4
+		syscall
+		
+		#sets s0 to -1 because it will be incrememted at the end of the loop
+		li $s0, -1
+		
+		jal newLine
+
+loopEnd:	
+		addi $s0, $s0, 1 #increases the col counter
+		addi $t2, $t2, 1 #increases the overall counter
+		addi $t0, $t0, 4 #readies the address to print the next element in the array
+
+		#print the next element
+		j loop
+
+
+exit:
+		#exit the program
+		li $v0, 10
+		syscall
+		
+##############################################################################
+# Subroutine Name: checkValue
+##############################################################################
+# Functional Description:
+# checks the value of an incoming string and return either "   ", " X ", or " O "
+#
+##############################################################################
+# Explain the parameters passed to the subroutine
+# t4 is the integer stored in the array
+#
+# Explain the values returned by the subroutine
+# returns the correct string to be printed
+#
+##############################################################################
+# Register Usage in subroutine:
+# $a0- loads the address of the string to be printed
+# $t4- the input that is compared
+# $ra- to go back to the previous code
+##############################################################################		
+checkValue:
+		beq $t4, 0, zero # t4 = 0
+		beq $t4, -1, negOne #t4 = -1
+		beq $t4, 1, one #$t4 = 1
+		
+zero:		#0 = 0
+		la $a0, Zero
+		
+		j leave
+negOne:		
+		#-1 = ' '
+		la $a0, NegOne
+		
+		j leave
+one:
+		#1 = X 
+		la $a0, One
+
+leave:
+		jr $ra
+##############################################################################
+# Subroutine Name: printChar
+##############################################################################
+# Functional Description:
+# it prints the string loaded into a0
+#
+##############################################################################
+# Explain the parameters passed to the subroutine
+# a0 holds the address of the string to be printed
+#
+# Explain the values returned by the subroutine
+#none
+#
+##############################################################################
+# Register Usage in subroutine:
+# $v0- to print the string
+# $ra- to go back to the previous code
+##############################################################################
+printChar:
+ 		li $v0, 4
+ 		syscall
+
+		jr $ra
+		
+##############################################################################
+# Subroutine Name: newLine
+##############################################################################
+# Functional Description:
+# it prints a new line
+#
+##############################################################################
+# Explain the parameters passed to the subroutine
+# none
+#
+# Explain the values returned by the subroutine
+#none
+#
+##############################################################################
+# Register Usage in subroutine:
+# $a0- loads the address of the newline char
+# $v0- to print the newline
+# $ra- to go back to the previous code
+##############################################################################
+newLine:
+		#prints a new line
+		la $a0, newline
+		li $v0, 4
+		syscall
+
+		jr $ra
+		
+##############################################################################
+# Subroutine Name: printMiddleChars
+##############################################################################
+# Functional Description:
+# prints the middle character "|" 
+#
+##############################################################################
+# Explain the parameters passed to the subroutine
+#none
+#
+# Explain the values returned by the subroutine
+#none
+#
+##############################################################################
+# Register Usage in subroutine:
+# $a0- loads the address of middleChars
+# $v0- prints the string
+# $ra- goes back to the previous line of code
+##############################################################################		
+printMiddleChars:
+		#print |
+		la $a0, middleChars
+		li $v0, 4
+		syscall
+		
+		jr $ra
+				
+		
+		
+
